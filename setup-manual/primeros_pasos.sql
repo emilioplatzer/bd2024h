@@ -18,3 +18,5 @@ grant select, update, insert, delete on prod.producto to prod_be;
 insert into producto (nombre, categoria) values 
   ('café del kiosko del 0', 'cafetería'),
   ('café del maximia', 'cafetería');
+
+alter table producto add column lugar text;  

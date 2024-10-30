@@ -20,6 +20,7 @@ app.get('/nuevo-producto', async (req, res) => {
     res.send(`<form action="/grabar-nuevo-producto" method="post">
         <label>nombre <input name="nombre"></label> <br>
         <label>categoría <input name="categoria"></label> <br>
+        <label>lugar <input name="lugar"></label> <br>
         <input type=submit name="cargar">
     </form>`)
 })
@@ -51,8 +52,8 @@ app.post('/grabar-nuevo-producto', async (req, res) => {
 
     const result = await enUnaConexionaBD(async client => {
         return await client.query(
-            `INSERT INTO producto (nombre, categoria) VALUES ($1, $2) RETURNING id;`,
-            [req.body.nombre, req.body.categoria]
+            `INSERT INTO producto (nombre, categoria, lugar) VALUES ($1, $2, $3) RETURNING id;`,
+            [req.body.nombre, req.body.categoria, req.body.lugar]
         );
     })
     res.send(`grabado el producto ${result.rows[0].id}!<BR><a href='./productos'>lista de prodcutos</a>`)
@@ -70,7 +71,8 @@ app.get('/productos', async (req, res) => {
     
     res.send(`
         <table>
-            ${result.rows.map(row=>`<tr><td>${sanarHTML(row.id)}</td><td>${sanarHTML(row.nombre)}</td><td>${sanarHTML(row.categoria)}</td></tr>`).join('')}
+            <tr><th>id</th><th>nombre</th><th>categoria</th><th>lugar</th></tr>
+            ${result.rows.map(row=>`<tr><td>${sanarHTML(row.id)}</td><td>${sanarHTML(row.nombre)}</td><td>${sanarHTML(row.categoria)}</td><td>${sanarHTML(row.lugar)}</td></tr>`).join('')}
         </table>
     `)
 })
