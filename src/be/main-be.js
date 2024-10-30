@@ -52,11 +52,15 @@ app.post('/grabar-nuevo-producto', async (req, res) => {
     const result = await enUnaConexionaBD(async client => {
         return await client.query(
             `INSERT INTO producto (nombre, categoria) VALUES ($1, $2) RETURNING id;`,
-            [req.body.nombre, req.body.caregoria]
+            [req.body.nombre, req.body.categoria]
         );
     })
     res.send(`grabado el producto ${result.rows[0].id}!<BR><a href='./productos'>lista de prodcutos</a>`)
 })
+
+function sanarHTML(texto){
+    return (texto+'').replace('&',"&amp;").replace('<',"&lt;").replace('>',"&gt;");
+}
 
 app.get('/productos', async (req, res) => {
 
@@ -66,7 +70,7 @@ app.get('/productos', async (req, res) => {
     
     res.send(`
         <table>
-            ${result.rows.map(row=>`<tr><td>${row.id}</td><td>${row.nombre}</td><td>${row.categoria}</td></tr>`).join('')}
+            ${result.rows.map(row=>`<tr><td>${sanarHTML(row.id)}</td><td>${sanarHTML(row.nombre)}</td><td>${sanarHTML(row.categoria)}</td></tr>`).join('')}
         </table>
     `)
 })
