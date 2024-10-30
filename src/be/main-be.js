@@ -50,7 +50,10 @@ app.post('/grabar-nuevo-producto', async (req, res) => {
     console.log(req.body);
 
     const result = await enUnaConexionaBD(async client => {
-        return await client.query(`INSERT INTO producto (nombre, categoria) VALUES ('${req.body.nombre}','${req.body.categoria}') RETURNING id;`);
+        return await client.query(
+            `INSERT INTO producto (nombre, categoria) VALUES ($1, $2) RETURNING id;`,
+            [req.body.nombre, req.body.caregoria]
+        );
     })
     res.send(`grabado el producto ${result.rows[0].id}!<BR><a href='./productos'>lista de prodcutos</a>`)
 })
