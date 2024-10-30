@@ -49,10 +49,10 @@ async function enUnaConexionaBD(algo){
 app.post('/grabar-nuevo-producto', async (req, res) => {
     console.log(req.body);
 
-    await enUnaConexionaBD(async client => {
-        await client.query(`INSERT INTO producto (nombre, categoria) VALUES ('${req.body.nombre}','${req.body.categoria}');`);
+    const result = await enUnaConexionaBD(async client => {
+        return await client.query(`INSERT INTO producto (nombre, categoria) VALUES ('${req.body.nombre}','${req.body.categoria}') RETURNING id;`);
     })
-    res.send(`grabado!<BR><a href='./productos'>lista de prodcutos</a>`)
+    res.send(`grabado el producto ${result.rows[0].id}!<BR><a href='./productos'>lista de prodcutos</a>`)
 })
 
 app.get('/productos', async (req, res) => {
@@ -63,7 +63,7 @@ app.get('/productos', async (req, res) => {
     
     res.send(`
         <table>
-            ${result.rows.map(row=>`<tr><td>${row.nombre}</td><td>${row.categoria}</td></tr>`).join('')}
+            ${result.rows.map(row=>`<tr><td>${row.id}</td><td>${row.nombre}</td><td>${row.categoria}</td></tr>`).join('')}
         </table>
     `)
 })
