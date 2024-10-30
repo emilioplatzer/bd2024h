@@ -3,6 +3,7 @@ create schema prod;
 
 create user prod_be password 'cambiar_esta_clave_1234';
 grant usage on schema prod to prod_be;
+grant all on producto_id_seq to prod_be;
 
 set search_path = prod;
 
