@@ -18,21 +18,42 @@ const miEstructura = {
                 lugar: { tipo: 'text' },
             }
         },
-        lugares: {
+        lugar: {
+            auto: true,
             campos: {
                 lugar: { tipo: 'text', pk:true },
                 nombre: { tipo: 'text' },
-                ubicacion: { tipo: 'text' },
+                ubicacion: { tipo: 'text', titulo:'ubicación' },
             }
         }
     }
 }
 
+function forbidensen(res){
+    res.send('Forbidensen!')
+}
+
+function menuHtml(tabla){
+    return `
+    <br>
+    <br> ver cada <a href='./${tabla}/lista'>${tabla}</a> en una lista
+    <br> cargar nuevo <a href='./${tabla}/nuevo'>${tabla}</a>
+    `
+}
+
+function endpointDeAutoTabla(req, res, hacer){
+    const tabla = req.params.tabla;
+    if (miEstructura.tablas[tabla] != null && miEstructura.tablas[tabla].auto){
+        hacer(tabla, miEstructura.tablas[tabla], res)
+    } else {
+        forbidensen(res);
+    }
+}
 
 app.get('/', (req, res) => {
-    res.send(`Bienvenido al sitio de recomendaciones!    
-        <br> ver <a href='./producto/lista'>productos</a>
-        <br> cargar nuevo <a href='./producto/nuevo'>producto</a>
+    res.send(`Bienvenido al sitio de recomendaciones!
+        ${menuHtml('producto')}
+        ${menuHtml('lugar')}
     `)
 })
 
@@ -43,6 +64,21 @@ app.get('/producto/nuevo', async (req, res) => {
         <label>lugar <input name="lugar"></label> <br>
         <input type=submit name="cargar">
     </form>`)
+})
+
+app.get('/:tabla/nuevo', async (req, res) => {
+    endpointDeAutoTabla(req, res, (tabla, defTabla, res) => {
+        var defCampo = defTabla.campos;
+        const camposHtml = [];
+        for(var campo in defCampos){
+            var defCampo = defCampos[campo];
+            camposHtml.push(`<label>${defCampo.titulo ?? campo} <input name="${campo}"></label> <br>`)
+        }
+        res.send(`<form action="/${tabla}/grabar-nuevo" method="post">
+            ${camposHtml.join('\n')}
+            <input type=submit name="cargar">
+        </form>`)
+    })
 })
 
 /** @param {(client:pg.Client)=>Promise<void>} algo */
@@ -79,12 +115,51 @@ app.post('/producto/grabar-nuevo', async (req, res) => {
     res.send(`grabado el producto ${result.rows[0].id}!<BR><a href='../producto/lista'>lista de productos</a>`)
 })
 
+app.post('/:tabla/grabar-nuevo', async (req, res) => {
+    console.log(req.body);
+    endpointDeAutoTabla(req, res, async (tabla, defTabla, res) => {
+        var nombreCampos = Object.keys(defTabla.campos).filter(campo=>defTabla.campos[campo].tipo != 'serial');
+        var sql = `INSERT INTO ${tabla} (${nombreCampos}) VALUES (${nombreCampos.map((_,i)=>"$"+(i+1))}) 
+            RETURNING ${nombreCampos.filter(campo => defTabla.campos[campo].pk)};`;
+        var params = nombreCampos.map(campo => req.body[campo]);
+        console.log('SQL',sql,params)
+        const result = await enUnaConexionaBD(async client => {
+            return await client.query(sql, params);
+        })
+        res.send(`grabado un registro de ${tabla} ${nombreCampos.filter(campo => defTabla.campos[campo].pk).map(campo=>result.rows[0][campo])}!<BR><a href='../${tabla}/lista'>lista de ${tabla}</a>`)
+    })
+})
+
 function sanarHTML(texto){
     return (texto+'').replace('&',"&amp;").replace('<',"&lt;").replace('>',"&gt;");
 }
 
-app.get('/producto/lista', async (req, res) => {
+app.get('/:tabla/lista', async (req, res) => {
+    endpointDeAutoTabla(req, res, async (tabla, defTabla, res) => {
+        var defCampos = defTabla.campos;
+        const result = await enUnaConexionaBD(async client=>{
+            return await client.query(`SELECT * FROM ${tabla}`)
+        })
+        var listado = []
+        listado.push(`<table></tr>`);
+        for(var campo in defCampos){    
+            listado.push(`<th>${defCampos[campo].titulo ?? campo}</th>`)
+        }
+        listado.push(`</tr>`)
+        result.rows.forEach(row=>{
+            listado.push(`<tr>`)
+            for(var campo in defCampos){    
+                listado.push(`<td>${row[campo]}</td>`)
+            }
+            listado.push(`</tr>`)
+        })
+        listado.push('</table>')
+        listado.push(`<a href='/${tabla}/nuevo'>+ agregar uno</a>`);
+        res.send(listado.join(''))
+    })
+})
 
+app.get('/:tabla/lista', async (req, res) => {
     const result = await enUnaConexionaBD(async client=>{
         return await client.query('SELECT * FROM producto')
     })
@@ -112,9 +187,10 @@ app.get('/dump-db', async (req,res) => {
         }
         sql.push(sqlCampos.join(',\n'));
         sql.push(`);`);
+        sql.push(`grant select, update, insert, delete on prod.${tabla} to prod_be;`);
     }
     await fs.writeFile('local-dump.sql', sql.join('\n'), 'utf8');
-    res.send('Forbidensen!')
+    forbidensen(res);
 })
 
 app.listen(port, () => {
