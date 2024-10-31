@@ -11,6 +11,7 @@ const fs = require('fs').promises;
 const miEstructura = {
     tablas: {
         producto: {
+            auto: true,
             campos: {
                 id: { tipo: 'serial', pk:true },
                 nombre: { tipo: 'text' },
@@ -51,24 +52,17 @@ function endpointDeAutoTabla(req, res, hacer){
 }
 
 app.get('/', (req, res) => {
+    var nombreTablas = Object.keys(miEstructura.tablas).filter(tabla => miEstructura.tablas[tabla].auto);
     res.send(`Bienvenido al sitio de recomendaciones!
-        ${menuHtml('producto')}
-        ${menuHtml('lugar')}
+        ${nombreTablas.map(tabla=>
+            menuHtml(tabla)
+        )}
     `)
-})
-
-app.get('/producto/nuevo', async (req, res) => {
-    res.send(`<form action="/producto/grabar-nuevo" method="post">
-        <label>nombre <input name="nombre"></label> <br>
-        <label>categoría <input name="categoria"></label> <br>
-        <label>lugar <input name="lugar"></label> <br>
-        <input type=submit name="cargar">
-    </form>`)
 })
 
 app.get('/:tabla/nuevo', async (req, res) => {
     endpointDeAutoTabla(req, res, (tabla, defTabla, res) => {
-        var defCampo = defTabla.campos;
+        var defCampos = defTabla.campos;
         const camposHtml = [];
         for(var campo in defCampos){
             var defCampo = defCampos[campo];
@@ -102,18 +96,6 @@ async function enUnaConexionaBD(algo){
     
     return result;
 }
-
-app.post('/producto/grabar-nuevo', async (req, res) => {
-    console.log(req.body);
-
-    const result = await enUnaConexionaBD(async client => {
-        return await client.query(
-            `INSERT INTO producto (nombre, categoria, lugar) VALUES ($1, $2, $3) RETURNING id;`,
-            [req.body.nombre, req.body.categoria, req.body.lugar]
-        );
-    })
-    res.send(`grabado el producto ${result.rows[0].id}!<BR><a href='../producto/lista'>lista de productos</a>`)
-})
 
 app.post('/:tabla/grabar-nuevo', async (req, res) => {
     console.log(req.body);
@@ -158,21 +140,6 @@ app.get('/:tabla/lista', async (req, res) => {
         res.send(listado.join(''))
     })
 })
-
-app.get('/:tabla/lista', async (req, res) => {
-    const result = await enUnaConexionaBD(async client=>{
-        return await client.query('SELECT * FROM producto')
-    })
-    
-    res.send(`
-        <table>
-            <tr><th>id</th><th>nombre</th><th>categoria</th><th>lugar</th></tr>
-            ${result.rows.map(row=>`<tr><td>${sanarHTML(row.id)}</td><td>${sanarHTML(row.nombre)}</td><td>${sanarHTML(row.categoria)}</td><td>${sanarHTML(row.lugar)}</td></tr>`).join('')}
-        </table>
-        <a href='/producto/nuevo'>+ agregar uno</a>
-    `)
-})
-  
 
 // TODO hay que poner un middleware para que solo lo pueda ejecutar un admin:
 app.get('/dump-db', async (req,res) => {
